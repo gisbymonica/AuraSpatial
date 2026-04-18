@@ -75,10 +75,11 @@
         }
 
         .section-title {
-            font-size: 0.85rem;
-            color: #888;
+            font-size: 0.9rem;
+            color: #aaaaaa; /* Better contrast for accessibility */
             text-transform: uppercase;
             margin-bottom: 5px;
+            font-weight: 600;
         }
 
         .agent-text {
@@ -140,26 +141,29 @@
 
 <body>
 
-    <div id="map-container"></div>
+    <main id="map-container" aria-label="Interactive 3D Stadium Map visualizing crowd flow" role="application"></main>
 
-    <div id="sidebar">
-        <h1>AuraSpatial - Command & Control Center</h1>
-        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-            <div class="status-dot"></div>
-            <span style="font-size: 0.8rem; letter-spacing: 1px;">AGENT CONNECTION: LIVE</span>
-        </div>
+    <aside id="sidebar" aria-label="Command Center Feedback Panel">
+        <header>
+            <h1>AuraSpatial - Command & Control Center</h1>
+            <div style="display: flex; align-items: center; margin-bottom: 10px;" aria-hidden="true">
+                <div class="status-dot"></div>
+                <span style="font-size: 0.8rem; letter-spacing: 1px;">AGENT CONNECTION: LIVE</span>
+            </div>
+        </header>
 
-        <div class="section">
-            <div class="section-title">Operations Incident Commander Action Log</div>
-            <div id="agent-reasoning" class="agent-text">Initializing spatial sync...</div>
-        </div>
+        <section class="section" aria-labelledby="action-log-title">
+            <h2 id="action-log-title" class="section-title">Operations Incident Commander Action Log</h2>
+            <!-- Screen readers will smoothly announce updates dumped into this div -->
+            <div id="agent-reasoning" class="agent-text" role="status" aria-live="polite">Initializing spatial sync...</div>
+        </section>
 
-        <div class="section">
-            <div class="section-title">Raw Context Sync</div>
+        <section class="section" aria-labelledby="raw-context-title">
+            <h2 id="raw-context-title" class="section-title">Raw Context Sync</h2>
             <pre id="raw-context"
-                style="font-size: 0.7rem; color: #666; max-height: 150px; overflow: hidden; margin: 0;"></pre>
-        </div>
-    </div>
+                style="font-size: 0.75rem; color: #aaa; max-height: 150px; overflow: hidden; margin: 0;" aria-live="off"></pre>
+        </section>
+    </aside>
 
     <script>
         const { DeckGL, ScatterplotLayer, TextLayer, ArcLayer } = deck;
