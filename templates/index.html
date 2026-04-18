@@ -60,11 +60,25 @@
         h1 {
             color: var(--cyber-blue);
             margin: 0 0 10px 0;
-            font-size: 1.5rem;
+            font-size: 1.15rem;
+            /* Scaled down slightly to fit purely on one line */
             text-transform: uppercase;
             letter-spacing: 2px;
             border-bottom: 1px solid var(--cyber-blue);
             padding-bottom: 10px;
+            white-space: nowrap;
+            /* Forces one line constraint */
+        }
+
+        h3 {
+            color: #ccc;
+            margin: -5px 0 15px 0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-bottom: 1px solid var(--cyber-blue);
+            padding-bottom: 10px;
+            font-weight: 500;
         }
 
         .section {
@@ -76,7 +90,8 @@
 
         .section-title {
             font-size: 0.9rem;
-            color: #aaaaaa; /* Better contrast for accessibility */
+            color: #aaaaaa;
+            /* Better contrast for accessibility */
             text-transform: uppercase;
             margin-bottom: 5px;
             font-weight: 600;
@@ -85,8 +100,44 @@
         .agent-text {
             font-size: 0.95rem;
             line-height: 1.5;
-            white-space: pre-wrap;
             color: #e0e0e0;
+        }
+
+        .directive-box {
+            background: rgba(0, 243, 255, 0.1);
+            border-left: 4px solid var(--cyber-blue);
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 2px;
+        }
+
+        .command-header {
+            font-size: 0.75rem;
+            color: var(--cyber-blue);
+            letter-spacing: 1.5px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .directive-text {
+            color: #fff;
+            font-weight: 600;
+            font-size: 1.05rem;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+        }
+
+        .tactical-header {
+            font-size: 0.7rem;
+            color: #888;
+            letter-spacing: 1px;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .tactical-text {
+            color: #ccc;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
         }
 
         .highlight {
@@ -145,7 +196,8 @@
 
     <aside id="sidebar" aria-label="Command Center Feedback Panel">
         <header>
-            <h1>AuraSpatial - Command & Control Center</h1>
+            <h1>AuraSpatial</h1>
+            <h3>Command & Control Center</h3>
             <div style="display: flex; align-items: center; margin-bottom: 10px;" aria-hidden="true">
                 <div class="status-dot"></div>
                 <span style="font-size: 0.8rem; letter-spacing: 1px;">AGENT CONNECTION: LIVE</span>
@@ -155,13 +207,15 @@
         <section class="section" aria-labelledby="action-log-title">
             <h2 id="action-log-title" class="section-title">Operations Incident Commander Action Log</h2>
             <!-- Screen readers will smoothly announce updates dumped into this div -->
-            <div id="agent-reasoning" class="agent-text" role="status" aria-live="polite">Initializing spatial sync...</div>
+            <div id="agent-reasoning" class="agent-text" role="status" aria-live="polite">Initializing spatial sync...
+            </div>
         </section>
 
         <section class="section" aria-labelledby="raw-context-title">
             <h2 id="raw-context-title" class="section-title">Raw Context Sync</h2>
             <pre id="raw-context"
-                style="font-size: 0.75rem; color: #aaa; max-height: 150px; overflow: hidden; margin: 0;" aria-live="off"></pre>
+                style="font-size: 0.75rem; color: #aaa; max-height: 150px; overflow: hidden; margin: 0;"
+                aria-live="off"></pre>
         </section>
     </aside>
 
@@ -192,8 +246,48 @@
                     return;
                 }
 
-                // Update UI Sidebar
-                document.getElementById('agent-reasoning').innerText = data.agent_reasoning || "Reasoning synced.";
+                // Parse the native Gemini tags using Regex payload stripping
+                let rawText = data.agent_reasoning || "";
+
+                let inputMatch = rawText.match(/\[INPUT\]([\s\S]*?)\[REASONING\]/i);
+                let reasoningMatch = rawText.match(/\[REASONING\]([\s\S]*?)\[ACTION\]/i);
+                let actionMatch = rawText.match(/\[ACTION\]([\s\S]*)/i);
+
+                let sensorData = inputMatch ? inputMatch[1].trim() : "Syncing telemetry...";
+                let tactReasoning = reasoningMatch ? reasoningMatch[1].trim() : "Awaiting strategy vectors.";
+                let fieldDirective = actionMatch ? actionMatch[1].trim() : rawText;
+
+                // Mini Markdown to HTML converter
+                function formatMarkdown(text) {
+                    // Convert **bold** to <strong>bold</strong>
+                    let html = text.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #00f3ff;">$1</strong>');
+                    // Add distinct line breaks before numbered list items mapping
+                    html = html.replace(/(\d+\.\s\*\*)/g, '<br><br>$1');
+                    // Strip leading break if it hits the top
+                    if (html.startsWith('<br><br>')) { html = html.substring(8); }
+                    return html;
+                }
+
+                fieldDirective = formatMarkdown(fieldDirective);
+                tactReasoning = formatMarkdown(tactReasoning);
+
+                // Re-build layout with Command Center UX hierarchy (Action First!)
+                let uxHTML = `
+                    <div class="directive-box">
+                        <div class="command-header">>>> ACTIVE FIELD DIRECTIVE</div>
+                        <div class="directive-text">${fieldDirective}</div>
+                    </div>
+                    <div>
+                        <div class="tactical-header">> TACTICAL INTELLIGENCE</div>
+                        <div class="tactical-text">${tactReasoning}</div>
+                    </div>
+                    <div>
+                        <div class="tactical-header">> SENSOR TELEMETRY LOGS</div>
+                        <div class="tactical-text">${sensorData}</div>
+                    </div>
+                `;
+
+                document.getElementById('agent-reasoning').innerHTML = uxHTML;
                 document.getElementById('raw-context').innerText = JSON.stringify(data.spatial, null, 2);
 
                 // Reformat cluster geometries for Deck.gl
