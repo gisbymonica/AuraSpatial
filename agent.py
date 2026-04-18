@@ -25,6 +25,15 @@ def invoke_incident_commander():
         
     context_data = json.loads(raw_context)
     
+    # Strip heavy geometry arrays to drastically save Gemini API Tokens
+    agent_context = {
+        "gates": context_data.get("gates", []),
+        "hotspot_clusters": [
+            {"cluster_id": c["cluster_id"], "fan_count": c["fan_count"]} 
+            for c in context_data.get("hotspot_clusters", [])
+        ]
+    }
+    
     system_instruction = """
     You are the 'Operations Incident Commander' for AuraSpatial. Your job is to monitor real-time flow capacities at large-scale sporting venues.
     Your objective is to review the Metadata-based RAG context of the stadium, analyze High-Density Spikes or Gate Bottlenecks, and propose spatial resolutions.
@@ -42,9 +51,10 @@ def invoke_incident_commander():
     (Clear, actionable outcome for the ground-staff. E.g., 'Deploy 3 personnel to Gate A to redirect flow. Open emergency route to Gate B.')
     """
     
+    # Sending dense, compact JSON
     prompt = f"""
     Current Spatial Context:
-    {json.dumps(context_data, indent=2)}
+    {json.dumps(agent_context)}
     
     Please analyze this real-time context and respond according to your format.
     """

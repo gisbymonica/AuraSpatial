@@ -304,8 +304,8 @@
             }
         }
 
-        // Poll every 30 seconds (conserves aggressive API usage limits on Free Tier)
-        setInterval(fetchSystemState, 30000);
+        // Poll every 60 seconds (strictly conserves API usage limits and slashes costs)
+        setInterval(fetchSystemState, 60000);
         // Initial Fetch
         fetchSystemState();
 
