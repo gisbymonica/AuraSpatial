@@ -18,10 +18,10 @@ The AuraSpatial architecture operates on a **Sense - Think - Act** framework:
 ---
 
 ## How the Solution Works
-1. **Mock Ingestion**: For this prototype, `mock_ingestion.py` spawns 50 AI-represented fans roaming near defined targets (Gates) using dynamic configuration from `gates.json`.
-2. **Spatial Analytics**: `spatial_analytics.py` maintains automatic BigQuery Views. By leveraging `TIMESTAMP` filters, it actively destroys "ghost" anomalies by purging history older than 15 minutes, maintaining strict relevance.
+1. **Automated PoC Ingestion**: For this Proof of Concept (PoC), you do not need to manually run simulation scripts! When a user visits the dashboard URL, the backend seamlessly pulses `mock_ingestion.py` behind the scenes. This guarantees fresh demo data is always visualized by seamlessly spawning 50 AI-represented fans and migrating their geometries towards defined target Gates (pulled dynamically from `gates.json`). 
+2. **Spatial Analytics**: `spatial_analytics.py` maintains automatic BigQuery Views. By leveraging native `TIMESTAMP` filters, the map automatically destroys "ghost" anomalies by cleanly wiping historical records older than 15 minutes to guarantee pure real-time tactical mapping.
 3. **Agent Brain**: `agent.py` wraps the Google GenAI SDK. Once a threshold is triggered, the AI reviews the inputs and issues strict text actions in an `[INPUT] -> [REASONING] -> [ACTION]` structure.
-4. **Flask Relay**: `app.py` protects your API keys by masking the Gemini endpoints. The browser pings `app.py` continuously to maintain an uninterrupted dashboard view.
+4. **Flask Relay**: `app.py` acts as the control tower. It protects your API keys by masking the Gemini endpoints, seamlessly manages the heartbeat of the background simulation bots to bypass Cloud API overload limits, and orchestrates the web dashboard.
 
 ---
 
@@ -48,17 +48,14 @@ To run this Digital Twin directly on your local laptop:
    ```
 2. **Ensure Authentication Context**:
    Verify your service account specifically `<SERVICE_ACCOUNT_KEY>.json` handles the target dataset locally.
-3. **Launch the Engine**:
-   In your First Terminal: Let the fans loose!
-   ```bash
-   python mock_ingestion.py
-   ```
-4. **Deploy Dashboard**:
-   In your Second Terminal: Run your web proxy!
+3. **Deploy Dashboard**:
+   In your terminal, simply spin up the web proxy:
    ```bash
    python app.py
    ```
-5. Navigate to `http://localhost:5000` to see your AI take charge!
+4. **Visualizing the Stadium**:
+   Navigate to `http://localhost:8080` in Chrome/Edge! 
+   *Because of our automated ingestion architecture, the Dashboard natively pushes dummy batches of AI Crowd Movement out into the stadium the exact millisecond you boot the URL! You will see the teal spatial clusters load into the physical limits instantly!*
 
 ---
 
