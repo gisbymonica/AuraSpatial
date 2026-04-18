@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraSpatial Command Center</title>
+
+    <!-- maplibre gl -->
+    <link href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js"></script>
+
+    <!-- deck.gl standalone -->
+    <script src="https://unpkg.com/deck.gl@8.9.0/dist.min.js"></script>
+
+    <style>
+        :root {
+            --cyber-blue: #00f3ff;
+            --cyber-dark: #090a0f;
+            --panel-bg: rgba(9, 10, 15, 0.85);
+            --border-glow: #00f3ff80;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--cyber-dark);
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #map-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Cyberpunk UI Sidebar */
+        #sidebar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: calc(100vh - 40px);
+            background: var(--panel-bg);
+            border: 1px solid var(--cyber-blue);
+            box-shadow: 0 0 15px var(--border-glow);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        h1 {
+            color: var(--cyber-blue);
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid var(--cyber-blue);
+            padding-bottom: 10px;
+        }
+
+        .section {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-left: 3px solid var(--cyber-blue);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .agent-text {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #e0e0e0;
+        }
+
+        .highlight {
+            color: var(--cyber-blue);
+            font-weight: bold;
+        }
+
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: var(--cyber-blue);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            box-shadow: 0 0 8px var(--cyber-blue);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(0, 243, 255, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(0, 243, 255, 0);
+            }
+        }
+
+        /* Scanline effect */
+        #sidebar::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map-container"></div>
+
+    <div id="sidebar">
+        <h1>AuraSpatial - Command & Control Center</h1>
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <div class="status-dot"></div>
+            <span style="font-size: 0.8rem; letter-spacing: 1px;">AGENT CONNECTION: LIVE</span>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Operations Incident Commander Action Log</div>
+            <div id="agent-reasoning" class="agent-text">Initializing spatial sync...</div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Raw Context Sync</div>
+            <pre id="raw-context"
+                style="font-size: 0.7rem; color: #666; max-height: 150px; overflow: hidden; margin: 0;"></pre>
+        </div>
+    </div>
+
+    <script>
+        const { DeckGL, ScatterplotLayer, TextLayer, ArcLayer } = deck;
+
+        const deckgl = new DeckGL({
+            container: 'map-container',
+            mapStyle: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            initialViewState: {
+                longitude: 77.599861,
+                latitude: 12.980111,
+                zoom: 17,
+                pitch: 45,
+                bearing: 0
+            },
+            controller: true
+        });
+
+        async function fetchSystemState() {
+            try {
+                // Fetch the unified payload from our Flask Python API
+                const response = await fetch('/api/stadium_state');
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('agent-reasoning').innerText = "ERROR: " + data.error;
+                    return;
+                }
+
+                // Update UI Sidebar
+                document.getElementById('agent-reasoning').innerText = data.agent_reasoning || "Reasoning synced.";
+                document.getElementById('raw-context').innerText = JSON.stringify(data.spatial, null, 2);
+
+                // Reformat cluster geometries for Deck.gl
+                const clusters = data.spatial.hotspot_clusters || [];
+                const parsedData = clusters.map(c => {
+                    return {
+                        position: c.geometry.coordinates,
+                        radius: c.fan_count * 2, // scale visually
+                        count: c.fan_count
+                    };
+                });
+
+                // Reformat Gates for Deck.gl
+                const gatePoints = data.spatial.gates || [];
+                let gateData = [];
+
+                for (let g of gatePoints) {
+                    if (g.lon && g.lat) {
+                        gateData.push({
+                            name: `${g.gate_name} (${g.occupancy_percentage}%)`,
+                            position: [g.lon, g.lat],
+                            safe: g.occupancy_percentage < 80
+                        });
+                    }
+                }
+
+                // Layers
+                const layerClusters = new ScatterplotLayer({
+                    id: 'hotspot-layer',
+                    data: parsedData,
+                    pickable: true,
+                    opacity: 0.8,
+                    stroked: true,
+                    filled: true,
+                    radiusMinPixels: 10,
+                    radiusMaxPixels: 100,
+                    lineWidthMinPixels: 2,
+                    getPosition: d => d.position,
+                    getRadius: d => d.radius,
+                    getFillColor: [0, 243, 255, 140], // Cyberpunk Blue
+                    getLineColor: [255, 255, 255]
+                });
+
+                const layerGates = new ScatterplotLayer({
+                    id: 'gate-layer',
+                    data: gateData,
+                    pickable: true,
+                    opacity: 1,
+                    stroked: false,
+                    filled: true,
+                    radiusMinPixels: 8,
+                    getPosition: d => d.position,
+                    getFillColor: d => d.safe ? [0, 255, 100] : [255, 50, 50]
+                });
+
+                const layerGateText = new TextLayer({
+                    id: 'gate-text',
+                    data: gateData,
+                    getPosition: d => d.position,
+                    getText: d => d.name,
+                    getSize: 16,
+                    getColor: [255, 255, 255],
+                    getPixelOffset: [0, -20],
+                    fontFamily: 'Inter'
+                });
+
+                // Find safest gate for Agentic Flow Visuals
+                let safestGate = null;
+                let lowestOccupancy = 101;
+                for (let g of gatePoints) {
+                    if (g.lon && g.lat && g.occupancy_percentage < lowestOccupancy) {
+                        lowestOccupancy = g.occupancy_percentage;
+                        safestGate = [g.lon, g.lat];
+                    }
+                }
+
+                // Fallback to first gate if needed
+                if (!safestGate && gatePoints.length > 0 && gatePoints[0].lon) {
+                    safestGate = [gatePoints[0].lon, gatePoints[0].lat];
+                }
+
+                // Compute Arcs wrapping clusters to the current optimal gate
+                const arcData = [];
+                if (safestGate) {
+                    for (let c of parsedData) {
+                        arcData.push({
+                            source: c.position,
+                            target: safestGate,
+                            count: c.count
+                        });
+                    }
+                }
+
+                const layerArcs = new ArcLayer({
+                    id: 'arc-layer',
+                    data: arcData,
+                    getSourcePosition: d => d.source,
+                    getTargetPosition: d => d.target,
+                    getSourceColor: [0, 243, 255, 180], // Cyberblue
+                    getTargetColor: [0, 255, 100, 255], // Safe Green
+                    getWidth: d => Math.max(3, d.count / 5), // Dynamic thickness
+                    pickable: false
+                });
+
+                deckgl.setProps({
+                    layers: [layerClusters, layerGates, layerGateText, layerArcs]
+                });
+
+            } catch (e) {
+                console.error("Polling error:", e);
+                document.getElementById('agent-reasoning').innerText = "Lost connection to Brain Server... Reconnecting.";
+            }
+        }
+
+        // Poll every 30 seconds (conserves aggressive API usage limits on Free Tier)
+        setInterval(fetchSystemState, 30000);
+        // Initial Fetch
+        fetchSystemState();
+
+    </script>
+</body>
+
+</html>
