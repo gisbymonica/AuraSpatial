@@ -256,28 +256,27 @@
                     fontFamily: 'Inter'
                 });
 
-                // Find safest gate for Agentic Flow Visuals
-                let safestGate = null;
-                let lowestOccupancy = 101;
-                for (let g of gatePoints) {
-                    if (g.lon && g.lat && g.occupancy_percentage < lowestOccupancy) {
-                        lowestOccupancy = g.occupancy_percentage;
-                        safestGate = [g.lon, g.lat];
-                    }
-                }
-
-                // Fallback to first gate if needed
-                if (!safestGate && gatePoints.length > 0 && gatePoints[0].lon) {
-                    safestGate = [gatePoints[0].lon, gatePoints[0].lat];
-                }
-
-                // Compute Arcs wrapping clusters to the current optimal gate
+                // Compute Arcs wrapping clusters to their nearest gate to visualize physical crowd flow
                 const arcData = [];
-                if (safestGate) {
-                    for (let c of parsedData) {
+                for (let c of parsedData) {
+                    let nearestGate = null;
+                    let minDistance = Infinity;
+
+                    for (let g of gatePoints) {
+                        if (g.lon && g.lat) {
+                            let dist = Math.sqrt(Math.pow(c.position[0] - g.lon, 2) + Math.pow(c.position[1] - g.lat, 2));
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                nearestGate = [g.lon, g.lat];
+                            }
+                        }
+                    }
+
+                    // Only draw an arc if they are still moving towards it (not already standing exactly on it)
+                    if (nearestGate && minDistance > 0.00015) {
                         arcData.push({
                             source: c.position,
-                            target: safestGate,
+                            target: nearestGate,
                             count: c.count
                         });
                     }
@@ -304,8 +303,8 @@
             }
         }
 
-        // Poll every 60 seconds (strictly conserves API usage limits and slashes costs)
-        setInterval(fetchSystemState, 60000);
+        // Poll every 120 seconds (strictly conserves API usage limits and slashes costs)
+        setInterval(fetchSystemState, 1200000);
         // Initial Fetch
         fetchSystemState();
 
