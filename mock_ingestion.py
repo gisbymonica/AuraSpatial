@@ -147,11 +147,38 @@ def main():
                 print("BigQuery not configured. Skipping streaming.")
                 
             print("-" * 30)
+            print("-" * 30)
             # Increase interval slightly to avoid hitting the 1500 load jobs/day free-tier quota too fast
             time.sleep(UPDATE_INTERVAL)
             
     except KeyboardInterrupt:
         print("\nSimulation stopped.")
+
+def run_once(num_fans=50):
+    """Generates exactly one static batch of Fan Data and safely terminates."""
+    fans = [Fan(str(uuid.uuid4())[:8]) for _ in range(num_fans)]
+    bq_client = get_bigquery_client()
+    table_ref = None
+    if bq_client:
+        table_ref = setup_bigquery(bq_client)
+        
+    records = []
+    # Step the fans 3 times silently so they are slightly displaced from center
+    for _ in range(3):
+        for fan in fans:
+            fan.move()
+            
+    for fan in fans:
+        records.append(fan.get_payload())
+        
+    if bq_client and table_ref:
+        try:
+            job_config = bigquery.LoadJobConfig(write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
+            job = bq_client.load_table_from_json(records, table_ref, job_config=job_config)
+            job.result()
+            print(f"Single-batch injected {len(records)} fans to BQ.")
+        except Exception as e:
+            print(f"Batch Insert Failed: {e}")
 
 if __name__ == "__main__":
     main()
