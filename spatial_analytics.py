@@ -4,6 +4,8 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 import google.auth
 import google.auth.exceptions
+import logging
+
 
 # Configuration
 PROJECT_ID = "aurageo"
@@ -15,7 +17,8 @@ CREDENTIALS_FILE = "aurageo-3468d6ddc9c1.json"
 CLUSTER_RADIUS_METERS = int(os.getenv("CLUSTER_RADIUS_METERS", "20"))
 GATE_CAPACITY = int(os.getenv("GATE_CAPACITY", "50"))
 
-def get_bigquery_client():
+def get_bigquery_client() -> bigquery.Client | None:
+    """Gets the authenticated BigQuery client."""
     try:
         # 1. Prefer local service account file if it exists (for local testing)
         if os.path.exists(CREDENTIALS_FILE):
@@ -28,10 +31,10 @@ def get_bigquery_client():
         client = bigquery.Client(credentials=credentials, project=PROJECT_ID)
         return client
     except Exception as e:
-        print(f"Failed to initialize BigQuery client: {e}")
+        logging.error(f"Failed to initialize BigQuery client: {e}")
         return None
 
-def setup_views():
+def setup_views() -> None:
     """Sets up the Spatial Analytics views if they don't exist yet."""
     client = get_bigquery_client()
     if not client:
@@ -70,9 +73,9 @@ def setup_views():
         client.create_table(view, exists_ok=True)
         # Update view if it already exists but we want to refresh params
         client.update_table(view, ["view_query"])
-        print(f"Successfully configured View: {fan_clusters_view_id}")
+        logging.info(f"Successfully configured View: {fan_clusters_view_id}")
     except Exception as e:
-        print(f"Error creating fan_clusters view: {e}")
+        logging.error(f"Error creating fan_clusters view: {e}")
     # Load dynamic gates from gates.json
     with open("gates.json", "r") as f:
         gates_data = json.load(f)
@@ -110,11 +113,11 @@ def setup_views():
         view.view_query = gate_status_sql
         client.create_table(view, exists_ok=True)
         client.update_table(view, ["view_query"])
-        print(f"Successfully configured View: {gate_status_view_id}")
+        logging.info(f"Successfully configured View: {gate_status_view_id}")
     except Exception as e:
-        print(f"Error creating gate_status view: {e}")
+        logging.error(f"Error creating gate_status view: {e}")
 
-def get_spatial_context():
+def get_spatial_context() -> str:
     """Extracts the spatial summaries as JSON for the Agent."""
     client = get_bigquery_client()
     if not client:
@@ -143,7 +146,7 @@ def get_spatial_context():
     return json.dumps(context, indent=2)
 
 if __name__ == "__main__":  # pragma: no cover
-    print("Setting up Spatial Views...")
+    logging.info("Setting up Spatial Views...")
     setup_views()
-    print("\nExtracting Live Spatial Context JSON:")
-    print(get_spatial_context())
+    logging.info("Extracting Live Spatial Context JSON:")
+    logging.info(get_spatial_context())

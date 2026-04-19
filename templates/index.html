@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AuraSpatial Command Center: Real-time crowd flow AI analytics and stadium incident operations.">
     <title>AuraSpatial Command Center</title>
 
     <!-- maplibre gl -->
@@ -187,20 +188,37 @@
             background-size: 100% 2px, 3px 100%;
             pointer-events: none;
         }
+        .sync-btn {
+            background: transparent;
+            border: 1px solid var(--cyber-blue);
+            color: var(--cyber-blue);
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-left: auto;
+            text-transform: uppercase;
+        }
+        .sync-btn:focus, .sync-btn:hover {
+            background: var(--cyber-blue);
+            color: var(--cyber-dark);
+            outline: 2px solid white;
+        }
     </style>
 </head>
 
 <body>
 
-    <main id="map-container" aria-label="Interactive 3D Stadium Map visualizing crowd flow" role="application"></main>
+    <main id="map-container" aria-label="Interactive 3D Stadium Map visualizing crowd flow" role="region"></main>
 
     <aside id="sidebar" aria-label="Command Center Feedback Panel">
         <header>
             <h1>AuraSpatial</h1>
             <h3>Command & Control Center</h3>
-            <div style="display: flex; align-items: center; margin-bottom: 10px;" aria-hidden="true">
-                <div class="status-dot"></div>
-                <span style="font-size: 0.8rem; letter-spacing: 1px;">AGENT CONNECTION: LIVE</span>
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <div class="status-dot" aria-hidden="true"></div>
+                <span style="font-size: 0.8rem; letter-spacing: 1px;" aria-hidden="true">AGENT CONNECTION: LIVE</span>
+                <button class="sync-btn" onclick="fetchSystemState()" aria-label="Force manual data sync">SYNC</button>
             </div>
         </header>
 

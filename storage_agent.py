@@ -1,11 +1,12 @@
 import os
 import json
 import time
+import logging
 from google.cloud import storage
 
 BUCKET_NAME = "aurageo_data"
 
-def upload_incident_log(incident_data: dict):
+def upload_incident_log(incident_data: dict) -> bool:
     """
     Uploads the incident reasoning to Google Cloud Storage (Bucket: gs://aurageo_data).
     This functions as a persistent archive of the AI Agent's decisions.
@@ -23,10 +24,10 @@ def upload_incident_log(incident_data: dict):
             json.dumps(incident_data, indent=2),
             content_type="application/json"
         )
-        print(f"Successfully uploaded incident log to gs://{BUCKET_NAME}/{blob_name}")
+        logging.info(f"Successfully uploaded incident log to gs://{BUCKET_NAME}/{blob_name}")
         return True
     except Exception as e:
-        print(f"Failed to upload to Google Cloud Storage: {e}")
+        logging.error(f"Failed to upload to Google Cloud Storage: {e}")
         return False
 
 # Quick test if run directly

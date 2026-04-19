@@ -1,26 +1,30 @@
 import os
 import json
 import time
+import logging
 from google import genai
 from google.genai import types
 from spatial_analytics import get_spatial_context
 
-def invoke_incident_commander():
+
+def invoke_incident_commander() -> dict:
+    """
+    Invokes the Gemini Agent to parse BigQuery context.
+    Returns:
+        dict: The spatial JSON payload combined with Agent Reasoning.
+    """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("======== CONFIGURATION ERROR ========")
-        print("GEMINI_API_KEY environment variable is not set.")
-        print("Please set your Gemini API key in your console to run Phase 3:")
-        print('$env:GEMINI_API_KEY="your-api-key"')
-        print("=====================================")
+        logging.error("======== CONFIGURATION ERROR ========")
+        logging.error("GEMINI_API_KEY environment variable is not set.")
         return {"error": "GEMINI_API_KEY not set"}
         
     client = genai.Client(api_key=api_key)
     
-    print("Fetching live spatial context from BigQuery Brain...")
+    logging.info("Fetching live spatial context from BigQuery Brain...")
     raw_context = get_spatial_context()
     if raw_context == "{}" or not raw_context:
-        print("Error fetching spatial context from BigQuery.")
+        logging.error("Error fetching spatial context from BigQuery.")
         return {"error": "Failed to fetch context from BigQuery"}
         
     context_data = json.loads(raw_context)
@@ -59,7 +63,7 @@ def invoke_incident_commander():
     Please analyze this real-time context and respond according to your format.
     """
     
-    print("Agent Reasoning started via Gemini Flash...")
+    logging.info("Agent Reasoning started via Gemini Flash...")
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -77,7 +81,7 @@ def invoke_incident_commander():
             }
         except Exception as e:
             err_str = str(e)
-            print(f"Attempt {attempt+1} - Error invoking Gemini model: {err_str}")
+            logging.error(f"Attempt {attempt+1} - Error invoking Gemini model: {err_str}")
             if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                 fallback_ui = "[WARNING] API Quota Exhausted (429). Please wait for the daily reset or adjust polling limits."
                 return {"spatial": context_data, "agent_reasoning": fallback_ui}
@@ -90,11 +94,8 @@ def invoke_incident_commander():
 
 if __name__ == "__main__":  # pragma: no cover
     result = invoke_incident_commander()
-    print("\n" + "="*50)
-    print("AGENT DECISION SUMMARY")
-    print("="*50)
     if not result.get("error"):
-        print(result.get("agent_reasoning", "No resoning generated."))
+        logging.info("AGENT DECISION SUMMARY: %s", result.get("agent_reasoning", "No resoning generated."))
     else:
-        print("Error:", result.get("error"))
+        logging.error("Error: %s", result.get("error"))
 

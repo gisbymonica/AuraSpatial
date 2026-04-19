@@ -1,6 +1,6 @@
 # AuraSpatial: Agentic Digital Twin for Stadium Operations
 
-Welcome to **AuraSpatial**—a Geospatial Digital Twin powered by Google Cloud and Gemini 1.5 Flash. This project serves as a real-time command center designed to monitor physical crowd movement, cluster anomalies, and resolve spatial bottlenecks via AI-driven operational reasoning.
+Welcome to **AuraSpatial**—a Geospatial Digital Twin powered by Google Cloud and Gemini 2.5 Flash. This project serves as a real-time command center designed to monitor physical crowd movement, cluster anomalies, and resolve spatial bottlenecks via AI-driven operational reasoning.
 
 ## Chosen Vertical
 **Sports & Entertainment (Crowd & Safety Operations)**

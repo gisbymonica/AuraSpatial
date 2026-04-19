@@ -7,6 +7,8 @@ from google.api_core.exceptions import GoogleAPIError
 from google.oauth2 import service_account
 import google.auth
 import google.auth.exceptions
+import logging
+
 
 # Configuration
 PROJECT_ID = "aurageo"
@@ -26,7 +28,7 @@ NUM_FANS = 50
 STEP_SIZE = 0.00004 # Approx 4 meters
 
 class Fan:
-    def __init__(self, fan_id):
+    def __init__(self, fan_id: str):
         self.fan_id = fan_id
         # Start randomly near the center
         self.lat = CENTER_LAT + random.uniform(-0.0005, 0.0005)
@@ -34,7 +36,7 @@ class Fan:
         # Assign a random target gate
         self.target_gate = random.choice(list(GATES.keys()))
         
-    def move(self):
+    def move(self) -> None:
         target_lat = GATES[self.target_gate]["lat"]
         target_lon = GATES[self.target_gate]["lon"]
         
@@ -48,7 +50,7 @@ class Fan:
             self.lat += (lat_diff / dist) * STEP_SIZE + random.uniform(-0.00001, 0.00001)
             self.lon += (lon_diff / dist) * STEP_SIZE + random.uniform(-0.00001, 0.00001)
             
-    def get_payload(self):
+    def get_payload(self) -> dict:
         return {
             "fan_id": self.fan_id,
             "timestamp": time.time(),
@@ -59,7 +61,7 @@ class Fan:
             "lon": self.lon
         }
 
-def get_bigquery_client():
+def get_bigquery_client() -> bigquery.Client | None:
     import os
     try:
         # 1. Prefer local service account file if it exists (for local testing)
@@ -74,10 +76,10 @@ def get_bigquery_client():
         client = bigquery.Client(credentials=credentials, project=PROJECT_ID)
         return client
     except Exception as e:
-        print(f"Warning: BigQuery client could not be initialized: {e}")
+        logging.warning(f"BigQuery client could not be initialized: {e}")
         return None
 
-def setup_bigquery(client):
+def setup_bigquery(client: bigquery.Client) -> str:
     """Ensure the dataset and table exist before loading data."""
     dataset_id = f"{PROJECT_ID}.{DATASET_ID}"
     
@@ -86,9 +88,9 @@ def setup_bigquery(client):
     dataset.location = "US"
     try:
         client.create_dataset(dataset, exists_ok=True)
-        print(f"Dataset {dataset_id} is ready.")
+        logging.info(f"Dataset {dataset_id} is ready.")
     except Exception as e:
-        print(f"Warning/Error creating dataset: {e}")
+        logging.warning(f"Error creating dataset: {e}")
 
     # 2. Configure the table schema and create it
     table_id = f"{dataset_id}.{TABLE_ID}"
@@ -103,14 +105,14 @@ def setup_bigquery(client):
     table = bigquery.Table(table_id, schema=schema)
     try:
         client.create_table(table, exists_ok=True)
-        print(f"Table {table_id} is ready.")
+        logging.info(f"Table {table_id} is ready.")
     except Exception as e:
-        print(f"Warning/Error creating table: {e}")
+        logging.warning(f"Error creating table: {e}")
         
     return table_id
 
-def main():
-    print(f"Initializing {NUM_FANS} fan agents around M. Chinnaswamy Stadium...")
+def main() -> None:
+    logging.info(f"Initializing {NUM_FANS} fan agents around M. Chinnaswamy Stadium...")
     fans = [Fan(str(uuid.uuid4())[:8]) for _ in range(NUM_FANS)]
     
     bq_client = get_bigquery_client()
@@ -118,8 +120,7 @@ def main():
     if bq_client:
         table_ref = setup_bigquery(bq_client)
 
-    
-    print("Starting simulation loop. Press Ctrl+C to stop.")
+    logging.info("Starting simulation loop. Press Ctrl+C to stop.")
     try:
         while True:
             records = []
@@ -127,8 +128,7 @@ def main():
                 fan.move()
                 records.append(fan.get_payload())
                 
-            print(f"Generated {len(records)} trajectory points.")
-            print(f"Sample: {records[0]}")
+            logging.info(f"Generated {len(records)} trajectory points. Sample: {records[0]}")
             
             # Load to BigQuery via Load Job (Free Tier compatible)
             if bq_client and table_ref:
@@ -140,21 +140,18 @@ def main():
                     )
                     job = bq_client.load_table_from_json(records, table_ref, job_config=job_config)
                     job.result()  # Wait for the job to complete
-                    print(f"Successfully loaded {len(records)} points to BigQuery.")
+                    logging.info(f"Successfully loaded {len(records)} points to BigQuery.")
                 except GoogleAPIError as e:  # pragma: no cover
-                    print(f"BigQuery Load Error: {e}")
+                    logging.error(f"BigQuery Load Error: {e}")
             else:
-                print("BigQuery not configured. Skipping streaming.")
+                logging.info("BigQuery not configured. Skipping streaming.")
                 
-            print("-" * 30)
-            print("-" * 30)
-            # Increase interval slightly to avoid hitting the 1500 load jobs/day free-tier quota too fast
             time.sleep(UPDATE_INTERVAL)
             
     except KeyboardInterrupt:
-        print("\nSimulation stopped.")
+        logging.info("Simulation stopped.")
 
-def run_once(num_fans=50):
+def run_once(num_fans: int = 50) -> None:
     """Generates exactly one static batch of Fan Data and safely terminates."""
     fans = [Fan(str(uuid.uuid4())[:8]) for _ in range(num_fans)]
     bq_client = get_bigquery_client()
@@ -176,9 +173,9 @@ def run_once(num_fans=50):
             job_config = bigquery.LoadJobConfig(write_disposition=bigquery.WriteDisposition.WRITE_APPEND)
             job = bq_client.load_table_from_json(records, table_ref, job_config=job_config)
             job.result()
-            print(f"Single-batch injected {len(records)} fans to BQ.")
+            logging.info(f"Single-batch injected {len(records)} fans to BQ.")
         except Exception as e:
-            print(f"Batch Insert Failed: {e}")
+            logging.error(f"Batch Insert Failed: {e}")
 
 if __name__ == "__main__":  # pragma: no cover
     main()
