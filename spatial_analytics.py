@@ -142,7 +142,7 @@ def get_spatial_context():
     
     return json.dumps(context, indent=2)
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     print("Setting up Spatial Views...")
     setup_views()
     print("\nExtracting Live Spatial Context JSON:")

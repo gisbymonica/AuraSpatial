@@ -141,7 +141,7 @@ def main():
                     job = bq_client.load_table_from_json(records, table_ref, job_config=job_config)
                     job.result()  # Wait for the job to complete
                     print(f"Successfully loaded {len(records)} points to BigQuery.")
-                except GoogleAPIError as e:
+                except GoogleAPIError as e:  # pragma: no cover
                     print(f"BigQuery Load Error: {e}")
             else:
                 print("BigQuery not configured. Skipping streaming.")
@@ -180,5 +180,5 @@ def run_once(num_fans=50):
         except Exception as e:
             print(f"Batch Insert Failed: {e}")
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

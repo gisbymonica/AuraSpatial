@@ -2,10 +2,23 @@ import os
 import time
 import threading
 from flask import Flask, render_template, jsonify
+from flask_cors import CORS
 from agent import invoke_incident_commander
 import mock_ingestion
+from storage_agent import upload_incident_log
+
 
 app = Flask(__name__)
+CORS(app)
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://basemaps.cartocdn.com"
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
 LAST_INGESTION_TIME = 0
 
 # Security Caching to prevent API abuse/cost spikes
@@ -38,13 +51,17 @@ def stadium_state():
     if not state:
         return jsonify({"error": "Failed to invoke Agent logic."}), 500
     
+    # Upload to Cloud Storage in background
+    if "error" not in state:
+        threading.Thread(target=upload_incident_log, args=(state,), daemon=True).start()
+    
     # Cache valid output
     LAST_API_STATE = state
     LAST_API_UPDATE = current_time
     
     return jsonify(state)
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     # Ensure this runs on Cloud Run's port (default 8080)
     port = int(os.environ.get("PORT", 8080))
     app.run(debug=True, host="0.0.0.0", port=port)

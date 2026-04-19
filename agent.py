@@ -88,7 +88,7 @@ def invoke_incident_commander():
                 fallback_ui = "[WARNING] The Gemini model is currently experiencing high demand (503). Retrying next cycle..."
                 return {"spatial": context_data, "agent_reasoning": fallback_ui}
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     result = invoke_incident_commander()
     print("\n" + "="*50)
     print("AGENT DECISION SUMMARY")
@@ -97,3 +97,4 @@ if __name__ == "__main__":
         print(result.get("agent_reasoning", "No resoning generated."))
     else:
         print("Error:", result.get("error"))
+
